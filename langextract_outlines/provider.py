@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 
 from langextract import exceptions, inference, schema
 from langextract.providers import registry
@@ -35,19 +35,30 @@ if TYPE_CHECKING:
     # TODO: support other typings?
 
 
-# this is needed because LE requires { EXTRACTIONS_KEY: [ExtractionSchema] } shape downstream
-def _create_extraction_wrapper(user_output_type: type[BaseModel]) -> type[BaseModel]:
-    """Create a wrapper that conforms to langextract's expected schema shape."""
+def _create_extraction_wrapper(user_output_types: list[type[BaseModel]]) -> type[BaseModel]:
+    """Turn the user's list of models into the output type expected by LE.
+    
+    The user should provide a list of Pydantic models. Each model's name is the
+    name of an extraction class. The model's fields are the attributes of the
+    extraction class.
+    """
 
     from langextract.schema import EXTRACTIONS_KEY
     from pydantic import create_model
 
-    # Create model with dynamic field name
-    field_definitions = {
-        EXTRACTIONS_KEY: (list[user_output_type], ...)  # ... means required
-    }
+    base_models = []
 
-    return create_model("ExtractionWrapper", **field_definitions)
+    for user_output_type in user_output_types:
+        class_name = user_output_type.__name__
+        model = create_model(class_name, **{
+            str(class_name.lower()): str,
+            f"{class_name.lower()}_attributes": user_output_type
+        })
+        base_models.append(model)
+
+    return create_model("ExtractionSchema", **{
+        EXTRACTIONS_KEY: (list[Union[tuple(base_models)]], ...)
+    })
 
 
 class OutlinesNotInstalledError(exceptions.InferenceConfigError):
