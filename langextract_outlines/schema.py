@@ -1,0 +1,138 @@
+# Copyright 2025 Google LLC.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Outlines provider schema implementation."""
+
+from __future__ import annotations
+
+import dataclasses
+from typing import TYPE_CHECKING, Any
+
+from langextract import data, schema
+from outlines.types.dsl import JsonSchema
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+EXTRACTIONS_KEY = schema.EXTRACTIONS_KEY
+
+
+@dataclasses.dataclass
+class OutlinesSchema(schema.BaseSchema):
+    """Schema implementation for Outlines structured output.
+
+    Converts ExampleData objects into a JSON schema definition that Outlines
+    can use to enforce structured generation constraints.
+    """
+
+    _schema_dict: dict
+
+    @property
+    def schema_dict(self) -> dict:
+        """Returns the schema dictionary."""
+        return self._schema_dict
+
+    def to_provider_config(self) -> dict[str, Any]:
+        """Convert schema to Outlines-specific configuration.
+
+        Returns:
+          Dictionary containing the JSON schema output type built from examples for Outlines constraint.
+        """
+        # ASK: is there any diff here of using JSON schema vs a full pydantic model?
+        return {"_output_type": JsonSchema(self._schema_dict)}
+
+    @property
+    def supports_strict_mode(self) -> bool:
+        """Outlines enforces strict JSON schema constraints by design.
+
+        Returns:
+          True, as Outlines guarantees valid output through constraint enforcement.
+        """
+        return True
+
+    @classmethod
+    def from_examples(
+        cls,
+        examples_data: Sequence[data.ExampleData],
+        attribute_suffix: str = "_attributes",
+    ) -> OutlinesSchema:
+        """Creates an OutlinesSchema from example extractions.
+
+        Builds a JSON schema with a top-level "extractions" array. Each element
+        in that array is an object containing the extraction class name and an
+        accompanying "<class>_attributes" object for its attributes.
+
+        Args:
+          examples_data: A sequence of ExampleData objects containing extraction
+            classes and attributes.
+          attribute_suffix: String appended to each class name to form the
+            attributes field name (defaults to "_attributes").
+
+        Returns:
+          An OutlinesSchema with internal dictionary representing the JSON schema.
+        """
+
+        # ASK: this is just a copy of the gemini one, what would be optimal here?
+        # ASK: does outlines expect something more strict? this is entirely optional props
+        extraction_categories: dict[str, dict[str, set[type]]] = {}
+        for example in examples_data:
+            for extraction in example.extractions:
+                category = extraction.extraction_class
+                if category not in extraction_categories:
+                    extraction_categories[category] = {}
+
+                if extraction.attributes:
+                    for attr_name, attr_value in extraction.attributes.items():
+                        if attr_name not in extraction_categories[category]:
+                            extraction_categories[category][attr_name] = set()
+                        extraction_categories[category][attr_name].add(type(attr_value))
+
+        extraction_properties: dict[str, dict[str, Any]] = {}
+
+        for category, attrs in extraction_categories.items():
+            extraction_properties[category] = {"type": "string"}
+
+            attributes_field = f"{category}{attribute_suffix}"
+            attr_properties = {}
+
+            if not attrs:
+                attr_properties["_unused"] = {"type": "string"}
+            else:
+                for attr_name, attr_types in attrs.items():
+                    if list in attr_types:
+                        attr_properties[attr_name] = {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        }
+                    else:
+                        attr_properties[attr_name] = {"type": "string"}
+
+            extraction_properties[attributes_field] = {
+                "type": "object",
+                "properties": attr_properties,
+                "nullable": True,
+            }
+
+        extraction_schema = {
+            "type": "object",
+            "properties": extraction_properties,
+        }
+
+        schema_dict = {
+            "type": "object",
+            "properties": {EXTRACTIONS_KEY: {"type": "array", "items": extraction_schema}},
+            "required": [EXTRACTIONS_KEY],
+        }
+
+        return cls(_schema_dict=schema_dict)
