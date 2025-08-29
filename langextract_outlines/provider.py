@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 from langextract import exceptions, inference, schema
 from langextract.providers import registry
@@ -12,6 +12,8 @@ from outlines.generator import Generator
 from outlines.models.base import AsyncModel, Model
 from outlines.types.dsl import is_pydantic_model
 from pydantic import BaseModel, create_model
+
+OutputTypes = Sequence[type[BaseModel]]
 
 
 @registry.register(
@@ -24,7 +26,7 @@ class OutlinesProvider(inference.BaseLanguageModel):
     def __init__(
         self,
         outlines_model: Model | AsyncModel,
-        output_type: Optional[list[type[BaseModel]]] = None,
+        output_types: Optional[OutputTypes] = None,
         backend: Optional[str] = None,
         **inference_kwargs,
     ) -> None:
@@ -33,7 +35,7 @@ class OutlinesProvider(inference.BaseLanguageModel):
         ----------
         outlines_model:
             The Outlines Model instance to use for inference
-        output_type:
+        output_types:
             A list of Pydantic models that correspond to the extraction classes
             used in the examples. The value provided will be turned into a
             Pydantic model that that will be used by Outlines to constrain the
@@ -46,10 +48,10 @@ class OutlinesProvider(inference.BaseLanguageModel):
         """
         super().__init__(schema.Constraint(constraint_type=schema.ConstraintType.NONE))
 
-        formatted_output_type = _format_output_type(output_type)
+        formatted_output_types = _format_output_type(output_types)
         self._generator = Generator(
             outlines_model,
-            formatted_output_type,
+            formatted_output_types,
             backend,
         )
         self._inference_kwargs = inference_kwargs or {}
@@ -88,11 +90,11 @@ class OutlinesProvider(inference.BaseLanguageModel):
 
 
 def _format_output_type(
-    user_output_types: Optional[list[type[BaseModel]]] = None
+    user_output_types: Optional[OutputTypes] = None,
 ) -> Optional[type[BaseModel]]:
     """Turn the user's list of pydantic models into the output type
     expected by LE.
-    
+
     The user should provide a list of Pydantic models. Each model's name is the
     name of an extraction class. The model's fields are the attributes of the
     extraction class.
@@ -115,12 +117,11 @@ def _format_output_type(
     if not user_output_types:
         return None
 
-    if (
-        not isinstance(user_output_types, list)
-        or not all(is_pydantic_model(item) for item in user_output_types)
+    if not isinstance(user_output_types, list) or not all(
+        is_pydantic_model(item) for item in user_output_types
     ):
         raise ValueError(
-            "The `output_type` parameter must be a list of Pydantic "
+            "The `output_types` parameter must be a list of Pydantic "
             "models. Got: " + str(user_output_types)
         )
 
@@ -139,6 +140,7 @@ def _format_output_type(
         )
         base_models.append(model)
 
-    return create_model("ExtractionSchema", **{
-        EXTRACTIONS_KEY: (list[Union[tuple(base_models)]], ...)
-    })
+    return create_model(
+        "ExtractionSchema",
+        **{EXTRACTIONS_KEY: (list[Union[tuple(base_models)]], ...)},  # type: ignore
+    )
