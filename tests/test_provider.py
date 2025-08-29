@@ -34,8 +34,8 @@ class Emotion(BaseModel):
 
 def test_format_output_type():
     # Single class
-    output_type = [Character]
-    formatted_output_type = _format_output_type(output_type)
+    output_types = [Character]
+    formatted_output_type = _format_output_type(output_types)
 
     assert is_pydantic_model(formatted_output_type)
     extractions = formatted_output_type.model_fields["extractions"].annotation
@@ -44,8 +44,8 @@ def test_format_output_type():
     assert character.model_fields["character_attributes"].annotation == Character
 
     # Multiple classes
-    output_type = [Character, Emotion]
-    formatted_output_type = _format_output_type(output_type)
+    output_types = [Character, Emotion]
+    formatted_output_type = _format_output_type(output_types)
 
     assert is_pydantic_model(formatted_output_type)
     extractions = formatted_output_type.model_fields["extractions"].annotation
