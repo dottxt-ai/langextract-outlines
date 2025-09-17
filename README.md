@@ -40,12 +40,11 @@ import transformers
 from pydantic import BaseModel, Field
 from langextract_outlines import OutlinesProvider
 
-
 # Define your extraction prompt and examples
 prompt = "Extract characters and emotions from the text."
 examples = [
     lx.data.ExampleData(
-        text="Romeo gazed longingly at Juliet.",
+        "Romeo gazed longingly at Juliet.",
         extractions=[
             lx.data.Extraction(
                 extraction_class="character",
@@ -81,12 +80,13 @@ outlines_provider = OutlinesProvider(
     output_type=output_type,
     backend="outlines_core",
     temperature=0.5,
-    repetition_penalty=1
+    repetition_penalty=1,
+    max_new_tokens=100,
 )
 
 # Run extraction
 result = lx.extract(
-    text="Juliet smiled brightly at the stars.",
+    "Juliet smiled brightly at the stars.",
     prompt_description=prompt,
     examples=examples,
     model=outlines_provider,
