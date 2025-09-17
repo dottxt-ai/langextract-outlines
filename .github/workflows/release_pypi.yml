@@ -8,6 +8,9 @@ jobs:
   release-job:
     name: Build and publish on PyPi
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -24,4 +27,3 @@ jobs:
         grep -Rq "^Version: ${GITHUB_REF:10}$" langextract_outlines.egg-info/PKG-INFO
     - name: Publish to PyPi
       uses: pypa/gh-action-pypi-publish@v1.8.11
-
