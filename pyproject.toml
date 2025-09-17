@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "setuptools_scm"]
+requires = ["setuptools>=61.0,<77.0", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "langextract-outlines"
 authors= [{name = "Outlines Developers"}]
 description = "Outlines custom provider plugin for LangExtract"
 requires-python = ">=3.10,<3.13"
-license = {text = "Apache-2.0"}
+license = {file = "LICENSE"}
 keywords=[
     "machine learning",
     "language models",
@@ -44,12 +44,16 @@ repository = "https://github.com/dottxt-ai/langextract-outlines"
 file="README.md"
 content-type = "text/markdown"
 
+[tool.setuptools]
+license-files = ["LICENSE"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["langextract_outlines*"]
 
 [tool.setuptools_scm]
 write_to = "langextract_outlines/_version.py"
+version_scheme = "only-version"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
