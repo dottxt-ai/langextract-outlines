@@ -1,18 +1,31 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "langextract-outlines"
-version = "0.1.0"
+authors= [{name = "Outlines Developers"}]
 description = "Outlines custom provider plugin for LangExtract"
-readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 license = {text = "Apache-2.0"}
+keywords=[
+    "machine learning",
+    "language models",
+    "structured generation",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "langextract>=1.0.0",
     "outlines>=1.0.0,<1.4.0",
 ]
+dynamic = ["version"]
 
 [project.entry-points."langextract.providers"]
 outlines = "langextract_outlines.provider:OutlinesProvider"
@@ -23,6 +36,20 @@ test = [
     "outlines[transformers]>=1.0.0,<1.4.0"
 ]
 
+[project.urls]
+homepage = "https://github.com/dottxt-ai/langextract-outlines"
+repository = "https://github.com/dottxt-ai/langextract-outlines"
+
+[project.readme]
+file="README.md"
+content-type = "text/markdown"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["langextract_outlines*"]
+
+[tool.setuptools_scm]
+write_to = "langextract_outlines/_version.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
